@@ -1,10 +1,10 @@
 # Description
 
-Health report is java agent that illustrate how the JFR Event Streaming API can be used. 
+Health report is Java agent that illustrates how the JFR Event Streaming API can be used. 
 
 The agent runs alongside with an ordinary Java application and prints data produced by JFR to standard out.
 
-The program requires JDK 14, or later, and it only works on the Hotspot JVM. 
+Health report requires JDK 14, or later, and only works on the Hotspot JVM. 
 
 # Usage
 
@@ -16,11 +16,11 @@ To run Health report against itself:
   
   $ java Main.java
 
-Demonstration:
+For a demonstration see this video:
 
 https://youtu.be/E9K5m1HXMSc?t=367
 
-Example:
+Example output:
 
 <pre>
 =================== HEALTH REPORT === 2019-05-16 23:57:50 ====================
