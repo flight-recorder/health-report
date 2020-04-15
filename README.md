@@ -14,7 +14,7 @@ Health report requires JDK 14, or later, and only works on the Hotspot JVM.
 
 # Usage
 
-To run Health report as as a Java agent:
+To run Health report as a Java agent:
 
   $ java -javaagent:health-report.jar MyApp
 
