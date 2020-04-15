@@ -6,6 +6,12 @@ The agent runs alongside with an ordinary Java application and prints data produ
 
 Health report requires JDK 14, or later, and only works on the Hotspot JVM. 
 
+# Build instructions
+
+    cd src
+    javac Main.java
+    jar cmf META-INF/MANIFEST.MF health-report.jar 
+
 # Usage
 
 To run Health report as as a Java agent:
@@ -16,7 +22,7 @@ To run Health report against itself:
   
   $ java Main.java
 
-For a demonstration see this video:
+For a demonstration see:
 
 https://youtu.be/E9K5m1HXMSc?t=367
 
@@ -46,10 +52,6 @@ Example output:
 ==============================================================================
 </pre>
 
-# Build instructions
 
-    cd src
-    javac Main.java
-    jar cmf META-INF/MANIFEST.MF health-report.jar 
 
 
