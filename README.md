@@ -1,11 +1,26 @@
-Health report is java agent that illustrate how the JFR Event Streaming API can be
-used. 
+# Description
 
-The agent can be started like this:
+Health report is java agent that illustrate how the JFR Event Streaming API can be used. 
+
+The agent runs alongside with an ordinary Java application and prints data produced by JFR to standard out.
+
+The program requires JDK 14, or later, and it only works on the Hotspot JVM. 
+
+# Usage
+
+To run Health report as as a Java agent:
 
   $ java -javaagent:health-report.jar MyApp
 
-It will run alongside with the main applicationand print data producedd by JFR. 
+To run Health report against itself:
+  
+  $ java Main.java
+
+Demonstration:
+
+https://youtu.be/E9K5m1HXMSc?t=367
+
+Example:
 
 <pre>
 =================== HEALTH REPORT === 2019-05-16 23:57:50 ====================
@@ -30,5 +45,11 @@ It will run alongside with the main applicationand print data producedd by JFR.
 | MarlinTileGenerator.getAlphaNoRLE(...)                              2.22 % |
 ==============================================================================
 </pre>
+
+# Build instructions
+
+    cd src
+    javac Main.java
+    jar cmf META-INF/MANIFEST.MF health-report.jar 
 
 
