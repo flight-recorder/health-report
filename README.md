@@ -10,7 +10,7 @@ Health report requires JDK 14, or later, and only works on the Hotspot JVM.
 
     cd src
     javac Main.java
-    jar cmf META-INF/MANIFEST.MF health-report.jar 
+    jar cmf META-INF/MANIFEST.MF health-report.jar .
 
 # Usage
 
