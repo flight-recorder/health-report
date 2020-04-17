@@ -56,15 +56,15 @@ import jdk.jfr.consumer.RecordingStream;
  *
  * $ java -javaagent:health-report.jar MyApp
  *
- * For testing purposes it is also possible to just run Main.java and it will 
+ * For testing purposes it is also possible to just run Main.java and it will
  * run an allocation loop
- * 
+ *
  * $ java Main.java
  *
  */
 public final class Main {
-   
-    private static final String TEMPLATE = 
+
+    private static final String TEMPLATE =
     "=================== HEALTH REPORT === $FLUSH_TIME         ====================\n" +
     "| GC: $GC_NAME            Phys. memory: $PHYSIC_MEM Alloc Rate: $ALLOC_RATE  |\n" +
     "| OC Count    : $OC_COUNT Initial Heap: $INIT_HEAP  Total Alloc: $TOT_ALLOC  |\n" +
@@ -72,21 +72,21 @@ public final class Main {
     "| OC Pause Max: $OC_MAX   Commit. Heap: $COM_HEAP   Class Count : $CLASSES   |\n" +
     "| YC Count    : $YC_COUNT CPU Machine   : $MACH_CPU Safepoints: $SAFEPOINTS  |\n" +
     "| YC Pause Avg: $YC_AVG   CPU JVM User  : $USR_CPU  Max Safepoint: $MAX_SAFE |\n" +
-    "| YC Pause Max: $YC_MAX   CPU JVM System: $SYS_CPU  Max Comp. Time: $MAX_COM |\n" + 
-    "|--- Top Allocation Methods ------------------------------- -----------------|\n" + 
-    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" + 
-    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" + 
-    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" + 
-    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" + 
-    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" + 
-    "|--- Hot Methods ------------------------------------------------------------|\n" + 
-    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" + 
-    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" + 
-    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" + 
-    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" + 
-    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" +  
+    "| YC Pause Max: $YC_MAX   CPU JVM System: $SYS_CPU  Max Comp. Time: $MAX_COM |\n" +
+    "|--- Top Allocation Methods ------------------------------- -----------------|\n" +
+    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" +
+    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" +
+    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" +
+    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" +
+    "| $ALLOCACTION_TOP_FRAME                                            $AL_PE   |\n" +
+    "|--- Hot Methods ------------------------------------------------------------|\n" +
+    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" +
+    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" +
+    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" +
+    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" +
+    "| $EXECUTION_TOP_FRAME                                              $EX_PE   |\n" +
     "==============================================================================\n";
- 
+
     public final static Field FLUSH_TIME = new Field();
 
     public final static Field GC_NAME = new Field();
@@ -112,10 +112,10 @@ public final class Main {
     public final static Field SAFEPOINTS = new Field(Option.COUNT);
     public final static Field MAX_SAFE = new Field(Option.MAX, Option.DURATION);
     public final static Field MAX_COM = new Field(Option.MAX, Option.DURATION);
-    
+
     public final static Field ALLOCACTION_TOP_FRAME = new Field();
     public final static Field AL_PE = new Field(Option.NORMALIZED, Option.TOTAL);
-    
+
     public final static Field EXECUTION_TOP_FRAME = new Field();
     public final static Field EX_PE = new Field(Option.NORMALIZED, Option.COUNT);
 
@@ -160,20 +160,20 @@ public final class Main {
 
         rs.onFlush(Main::printReport);
         rs.startAsync();
-        
+
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
                 rs.close();
             }
         });
     }
-    
+
     private static void onCPULoad(RecordedEvent event) {
         MACH_CPU.addSample(event.getDouble("machineTotal"));
         SYS_CPU.addSample(event.getDouble("jvmSystem"));
         USR_CPU.addSample(event.getDouble("jvmUser"));
     }
-    
+
     private static void onYoungColletion(RecordedEvent event) {
         long nanos = event.getDuration().toNanos();
         YC_COUNT.addSample(nanos);
@@ -209,7 +209,7 @@ public final class Main {
         }
         GC_NAME.addSample(gc);
     }
-    
+
     private final static Map<Long, Instant> safepointBegin = new HashMap<>();
 
     private static void onSafepointBegin(RecordedEvent event) {
@@ -226,7 +226,7 @@ public final class Main {
             MAX_SAFE.addSample(nanos);
         }
     }
-    
+
     private static void onObjectAllocationOutsideTLAB(RecordedEvent event) {
         onAllocationSample(event, event.getLong("allocationSize"));
     }
@@ -277,7 +277,7 @@ public final class Main {
         INIT_HEAP.addSample(event.getLong("initialSize"));
     }
 
-    private final static DateTimeFormatter FORMATTER = 
+    private final static DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static void onFlushpoint(RecordedEvent event) {
         Instant i = event.getEndTime();
@@ -286,7 +286,7 @@ public final class Main {
     }
 
     // # # # AGENT # # #
-    
+
     // Used when loading agent from command line
     public static void premain(String agentArgs, Instrumentation inst) {
         start();
@@ -318,11 +318,11 @@ public final class Main {
             }
         });
     }
-    
+
     // # # # TEMPLATE AND SAMPLING # # #
 
     private enum Option {
-        BYTES, PERCENTAGE, DURATION, BYTES_PER_SECOND, NORMALIZED, COUNT, AVERAGE, TOTAL, MAX 
+        BYTES, PERCENTAGE, DURATION, BYTES_PER_SECOND, NORMALIZED, COUNT, AVERAGE, TOTAL, MAX
     }
 
     private static final class Record {
@@ -335,7 +335,7 @@ public final class Main {
             this.key = key;
             this.value = sample;
         }
-        
+
         public Record(Object object, double sample) {
             this.key = object;
             this.value = sample;
@@ -354,7 +354,7 @@ public final class Main {
         public double getMax() {
             return max;
         }
-        
+
         public double getTotal() {
             return total;
         }
@@ -384,7 +384,7 @@ public final class Main {
         public void addSample(double sample) {
             addSample(this, sample);
         }
-        
+
         public void addSample(String sample) {
             histogram.merge(this, new Record(this, sample), (a, b) -> {
                 a.count++;
@@ -441,7 +441,7 @@ public final class Main {
     private static Map<String, String> parseAgentOptions(String args) {
         Map<String, String> options = new HashMap<>();
         if (args == null) {
-        	return options;
+            return options;
         }
         try (Scanner scanner = new Scanner(args)) {
             scanner.useDelimiter(",");
@@ -456,7 +456,8 @@ public final class Main {
             return options;
         }
     }
-    
+
+    private static int linesUp = 0;
     private static void printReport() {
         try {
             StringBuilder template = new StringBuilder(TEMPLATE);
@@ -466,7 +467,10 @@ public final class Main {
                     writeParam(template, variable, (Field) f.get(null));
                 }
             }
-            System.out.println(template.toString());
+            System.out.println(up(linesUp) + template.toString());
+            if (linesUp == 0) {
+                linesUp = (int)template.toString().lines().count() + 1;
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -540,7 +544,7 @@ public final class Main {
     // # # # FORMATTING # # #
 
     enum TimespanUnit {
-        NANOSECONDS("ns", 1000), 
+        NANOSECONDS("ns", 1000),
         MICROSECONDS("us", 1000),
         MILLISECONDS("ms", 1000),
         SECONDS("s", 60),
@@ -671,5 +675,29 @@ public final class Main {
             descriptors.add(type + arrayBrackets);
         }
         return descriptors;
+    }
+
+    /**
+     * This is currently a very basic check for the support of ANSI escape
+     * sequeneces (https://en.wikipedia.org/wiki/ANSI_escape_code).
+     * Currently we only enable them by default on Linux. Users can override
+     * this by specifying "-DisAnsiTTY=true" on the command line.
+     */
+    private static boolean checkIsAnsiTTY() {
+         boolean linux = System.getProperty("os.name").equalsIgnoreCase("Linux");
+         boolean console = (System.console() != null);
+         boolean userOverride = Boolean.getBoolean("isAnsiTTY");
+         return userOverride || (linux && console);
+    }
+
+    private static boolean isAnsiTTY = checkIsAnsiTTY();
+
+    private static String up(int lines) {
+        if (isAnsiTTY) {
+            return "\u001b[" + lines +"A";
+        }
+        else {
+            return "";
+        }
     }
 }
