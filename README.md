@@ -4,7 +4,7 @@ Health report is Java agent that illustrates how the JFR Event Streaming API can
 
 The agent runs alongside with an ordinary Java application and prints data produced by JFR to standard out.
 
-Health report requires JDK 14, or later, and only works on the Hotspot JVM. 
+Health report requires JDK 14, or later, and only works on OpenJDK. 
 
 # Build instructions
 
