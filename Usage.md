@@ -20,7 +20,7 @@ On Windows, scrolling is the default behavior.
 
 #### --timeout <integer>
 
-If the source becomes unresponsive, for example if the process has crashed or the network connection has died, Health Report will try to reestablish the connection. Timeout specify how long Health Report should wait before closing the current stream and starting a new. The default timeout is 15 s.
+If the source becomes unresponsive, for example if the process has crashed or the network connection has died, Health Report will try to reestablish the connection. The timeout option specifies how long Health Report should wait before closing the current stream and starting a new. The default timeout is 15 s.
 
 Example: 
 
@@ -48,7 +48,7 @@ Example:
 
 The source is where Health Report stream events from. It can be a Java process, a directory, a network address or a recording file. 
 
-#### Source: Java process
+#### Java process
 
 Flight Recorder must be started before data can be streamed from a Java process, for example:
 
@@ -72,7 +72,7 @@ Examples:
     $java HealthReport.java 4711
     $java HealthReport.java my.jar
 
-#### Source: Directory
+#### Directory
 
 Flight Recorder writes event data to a directory known as the repository. By default it is located in the temporary directory, but it can be set during startup using -XX:FlightRecordOptions:
 
@@ -85,7 +85,7 @@ Examples:
     $ java HealthReport.java /data/
     $ java HealthReport.java /data/2021_03_30_09_48_31_60185
 
-#### Source: Network address
+#### Network address
 
 Health Report can stream events over JMX, but it requires that the management agent is running on the host. The management agent can be started by specifying the following properties at startup:
 
@@ -104,7 +104,7 @@ Examples:
 
 More information on how to setup the management agenet can be found [here](https://docs.oracle.com/en/java/javase/16/management/monitoring-and-management-using-jmx-technology.html). Health Report doesn't support ssl and authentication, so it can't be used in enviroments where security is a concern. 
 
-#### Source: Recording file
+#### Recording file
 
 Health Report can stream event from a recording file. A recording file can be created by specifying -XX:StartFlightRecording at startup, for example:
 
@@ -119,7 +119,7 @@ Examples:
     $ java HealthReport.java recording.jfr
     $ java HealthReport.java /directory/perf.jfr
 
-#### Source: Self
+#### Self
 
 It's possible to specify 'self' as a source to make Health Report stream against itself. It usually results in few events and is mostly useful for debugging purposes.
 
