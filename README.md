@@ -61,7 +61,7 @@ If a stream can't be created, for example, if the target process hasn't started,
 
 ## Targets
 
-*Repository*
+### Repository
 
     $ java HealthReport.java /directory/recording.jfr
     $ java HealthReport.java /repository/
@@ -71,7 +71,7 @@ The location of the repository for the target process can be specified using -XX
 
     $ java -XX:StartFlightRecording -XX:FlightRecordingOptions:repository=<directory> ...
 
-*Program name and PID*
+### Program name and PID
 
     $ java HealthReport.java MyApplication
     $ java HealthReport.java com.example.MyApplication
@@ -92,7 +92,7 @@ A list of Java processes and their PIDs is displayed if HealthReport.java starte
 
 Processes that are running with JFR enabled are prefixed with [JFR]. If the process is not running with JFR, it is not possible to stream data from it.
  
-*Network address*
+### Network address
 
     $ java HealthReport.java example.com:7091
     $ java HealthReport.java 127.0.0.1:7092
@@ -112,7 +112,7 @@ It's also possible to start the agent on already running process using the jcmd 
 More information on how to setup the management server can be found here https://docs.oracle.com/en/java/javase/16/management/monitoring-and-management-using-jmx-technology.html. Health Report doesn't support ssl and authentication, so it can't be used in an insecure environment. 
 
 
-*Recording file*
+### Recording file
 
     $ java HealthReport.java recording.jfr
     $ java HealthReport.java /recordings/perf.jfr
@@ -123,19 +123,19 @@ By specifying --replay-speed, it's possible to determine how fast the recording 
 
 By default, events are replayed at their maximum speed. 
 
-*Self*
+### Self
 
     $ java HealthReport.java self
 
 It's possible to specify 'self' to make Health Report connect to itself. It usually results in few events and is mostly useful for debugging purposes.
 
-# Options
+## Options
 
 It's possible to specify options for both the Java agent and the single-file program. The Java agent uses ',' and '=' as delimiters instead of whitespace characters, for example:
 
      $ java -javaagent:health-report.jar=--scroll,--debug,--timeout=20 MyApp
 
-*--scroll*
+### --scroll
 
 The program will by default use ANSI characters to reposition the cursor after each update. To override that behavior, --scroll can be specified.
 
@@ -145,7 +145,7 @@ Example:
 
 On Windows, scrolling is the default behavior.
 
-*--timeout <integer>*
+### --timeout <integer>
 
 If the target process becomes unresponsive, for example if it has crashed or the network connection dies, the program will try to reconnect. Timeout specify how long the program should wait before it should close the current stream and start a new. The default timeout 15 s.
 
@@ -153,7 +153,7 @@ Example:
 
     $ java --timeout 5 HealthReport.java MyApp
 
-*--debug*
+### --debug
 
 If the program is not able to start a stream against the target, you can specify --debug to see what the problem  was. 
 
