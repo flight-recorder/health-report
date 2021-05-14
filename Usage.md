@@ -44,11 +44,11 @@ Example:
 
     $ java --debug HealthReport.java com.example.MyApp
 
-## <source> 
+## \<source> 
 
 The source is where Health Report stream events from. It can be a Java process, a directory, a network address or a recording file. 
 
-### Source: Java process
+#### Source: Java process
 
 Flight Recorder must be started before data can be streamed from a Java process, for example:
 
@@ -72,7 +72,7 @@ Examples:
     $java HealthReport.java 4711
     $java HealthReport.java my.jar
 
-### Source: Directory
+#### Source: Directory
 
 Flight Recorder writes event data to a directory known as the repository. By default it is located in the temporary directory, but it can be set during startup using -XX:FlightRecordOptions:
 
@@ -85,7 +85,7 @@ Examples:
     $ java HealthReport.java /data/
     $ java HealthReport.java /data/2021_03_30_09_48_31_60185
 
-### Source: Network address
+#### Source: Network address
 
 Health Report can stream events over JMX, but it requires that the management agent is running on the host. The management agent can be started by specifying the following properties at startup:
 
@@ -104,7 +104,7 @@ Examples:
 
 More information on how to setup the management agenet can be found [here](https://docs.oracle.com/en/java/javase/16/management/monitoring-and-management-using-jmx-technology.html). Health Report doesn't support ssl and authentication, so it can't be used in enviroments where security is a concern. 
 
-### Source: Recording file
+#### Source: Recording file
 
 Health Report can stream event from a recording file. A recording file can be created by specifying -XX:StartFlightRecording at startup, for example:
 
@@ -119,7 +119,7 @@ Examples:
     $ java HealthReport.java recording.jfr
     $ java HealthReport.java /directory/perf.jfr
 
-### Source: Self
+#### Source: Self
 
 It's possible to specify 'self' as a source to make Health Report stream against itself. It usually results in few events and is mostly useful for debugging purposes.
 
