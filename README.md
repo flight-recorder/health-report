@@ -6,7 +6,7 @@ It's both a Java agent and a .java file that can be launched as a single-file pr
 
 Health report requires JDK 16, or later, and only works with OpenJDK/Oracle JDK.
 
-For a video demonstration see:
+For a demonstration see:
 
 https://youtu.be/E9K5m1HXMSc?t=367
 
@@ -52,7 +52,7 @@ To run Health Report as a single-file program:
   
     $ java HealthReport.java <source>
 
-The source is where events are streamed from. It can be a Java process, repository directory, network address, recording file, or itself.
+The source is where events are streamed from. It can be a Java process, a repository directory, a network address, a recording file, or itself.
  
     $ java HealthReport.java MyApplication
     $ java HealthReport.java --debug MyApplication
@@ -75,7 +75,7 @@ The source is where events are streamed from. It can be a Java process, reposito
 
 If the source is a network address running a JMX management agent, Health Report starts a recording on the host. Otherwise, it must be started manually, for example using -XX:StartFlightRecording.
 
-If a stream can't be created, for example, if the source process hasn't started yet, Health Report will retry until the source becomes available.
+If a stream can't be created, for example, if the source process hasn't started yet, Health Report will retry until the source becomes available. This is convenient when the program being monitored is frequently started and stopped. 
 
 For more detailed information see [usage](https://github.com/flight-recorder/health-report/blob/master/Usage.md).
 
