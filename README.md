@@ -55,39 +55,22 @@ To run Health Report as a single-file program:
 The source is where events are streamed from. It can be a Java process, repository directory, network address, recording file, or itself.
  
     $ java HealthReport.java MyApplication
-
     $ java HealthReport.java --debug MyApplication
-
     $ java HealthReport.java --scroll MyApplication
-
     $ java HealthReport.java --timeout 5 MyApplication
-
     $ java HealthReport.java com.example.MyApplication
-
     $ java HealthReport.java example.module/com.example.MyApplication
-
     $ java HealthReport.java application.jar
-
     $ java HealthReport.java /programs/application.jar
-
     $ java HealthReport.java 4711
-
     $ java HealthReport.java /repository/
-
     $ java HealthReport.java /repository/2021_03_30_09_48_31_60185
-
     $ java HealthReport.java example.com:7091
-
     $ java HealthReport.java 127.0.0.1:7092
-
     $ java HealthReport.java [0:0:0:0:0:0:0:1]:7093
-
     $ java HealthReport.java recording.jfr
-
     $ java HealthReport.java /directory/perf.jfr
-
     $ java HealthReport.java --replay-speed 10 recording.jfr
-
     $ java HealthReport.java self
 
 If the source is a network address running a JMX management agent, Health Report starts a recording on the host. Otherwise, it must be started manually, for example using -XX:StartFlightRecording.
@@ -104,4 +87,4 @@ In JDK 16, a new allocation event with less overhead was introduced (jdk.ObjectA
 
 ##### The timestamp is missing
 
-The displayed timestamp at the top of Health Report comes from jdk.Flush event which is not enabled when using -XX:StartFlightRecording. If Health Report is running as a Java agent, or it connects to over JMX, it is automatically enabled. It is not possible to turn the event on when streaming from a directory or a file. 
+The displayed timestamp at the top of Health Report comes from jdk.Flush event which is not enabled when using -XX:StartFlightRecording. If Health Report is running as a Java agent, or it connects over JMX, it is automatically enabled. It is not possible to turn the event on when streaming from a directory or a file. 
