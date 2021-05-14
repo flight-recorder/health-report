@@ -1,6 +1,6 @@
 Manifest-Version: 1.0
-Premain-Class: Main
-Main-Class: Main
-Agent-Class: Main
-Created-By: 11 (Oracle Corporation)
+Premain-Class: HealthReport
+Main-Class: HealthReport
+Agent-Class: HealthReport
+Created-By: 16 (Oracle Corporation)
 
