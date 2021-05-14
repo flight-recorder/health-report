@@ -122,8 +122,8 @@ public final class HealthReport {
     public final static Field EXECUTION_TOP_FRAME = new Field();
     public final static Field EX_PE = new Field(Option.NORMALIZED, Option.COUNT);
 
-    private final static void startStream(String target) throws Exception {
-        EventStream es = createStream(target);
+    private final static void startStream(String source) throws Exception {
+        EventStream es = createStream(source);
         print("");
         Duration duration = Duration.ofSeconds(1);
         if (es.getClass().getName().endsWith("RecordingStream")) {
@@ -173,7 +173,7 @@ public final class HealthReport {
         CleanupThread cleanup = new CleanupThread(es, connector);
         Runtime.getRuntime().addShutdownHook(cleanup);
         es.startAsync();
-        printed = false;
+        printed = false; // don't reposition the cursor the first time
         heartBeat = Instant.now();
         while (Duration.between(heartBeat, Instant.now()).toSeconds() < timeout) {
             Thread.sleep(1000);
@@ -191,14 +191,14 @@ public final class HealthReport {
         }
     }
 
-    // Primarily for closing lost network connection without delay
-    static class CleanupThread extends Thread {
+    // Primarily for closing a lost network connection without delay
+    private static class CleanupThread extends Thread {
         private final EventStream stream;
         private final Closeable closeable;
 
-        CleanupThread(EventStream es, Closeable c) {
-            this.stream = es;
-            this.closeable = c;
+        CleanupThread(EventStream stream, Closeable closeable) {
+            this.stream = stream;
+            this.closeable = closeable;
         }
 
         @Override
@@ -213,14 +213,14 @@ public final class HealthReport {
         }
     }
 
-    private static EventSettings enable(EventStream es, String eventName) {
-        if (es instanceof RemoteRecordingStream rrs) {
+    private static EventSettings enable(EventStream stream, String eventName) {
+        if (stream instanceof RemoteRecordingStream rrs) {
             return rrs.enable(eventName);
         }
-        if (es instanceof RecordingStream rs) {
+        if (stream instanceof RecordingStream rs) {
             return rs.enable(eventName);
         }
-        throw new InternalError("Unknown class: " + es.getClass());
+        throw new InternalError("Unknown class: " + stream.getClass());
     }
 
     private static void onCPULoad(RecordedEvent event) {
@@ -376,15 +376,15 @@ public final class HealthReport {
             }
         }
         if (options.size() == 1) {
-            String target = options.peek();
+            String source = options.peek();
             while (true) {
                 for (int i = 0; i < 78; i++) {
                     try {
-                        startStream(target);
+                        startStream(source);
                         if (isFile) {
                             return; // no retry with files.
                         }
-                        System.out.println("Time out! Retrying.");
+                        print("Time out! Retrying.");
                         break;
                     } catch (Exception e) {
                         debug("\n" + e.getMessage());
@@ -392,7 +392,7 @@ public final class HealthReport {
                     takeNap(1000);
                     System.out.print(".");
                 }
-                System.out.println();
+                print("");
             }
         }
         printHelp();
@@ -403,7 +403,7 @@ public final class HealthReport {
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException nfe) {
-            print("Not valid integer value: " + value);
+            print("Not a valid integer value: " + value);
             options.clear();
         }
         return 0;
@@ -428,21 +428,21 @@ public final class HealthReport {
         print(" --replay-speed <int>    Speedup factor. Only works with files.");
         print("");
         print("Examples:");
-        print("java HealthReport.java  recording.jfr");
-        print("java HealthReport.java  /directory/recording.jfr");
-        print("java HealthReport.java  /repository/");
-        print("java HealthReport.java  /repository/2021_03_30_09_48_31_60185");
-        print("java HealthReport.java  --scroll /repository");
-        print("java HealthReport.java  MyApplication");
-        print("java HealthReport.java  com.example.MyApplication");
-        print("java HealthReport.java  example.module/com.example.MyApplication");
-        print("java HealthReport.java  example.jar");
-        print("java HealthReport.java  --debug MyApplication");
-        print("java HealthReport.java  4711");
-        print("java HealthReport.java  example.com:7091");
-        print("java HealthReport.java  127.0.0.1:7092");
-        print("java HealthReport.java  [0:0:0:0:0:0:0:1]:7093");
-        print("java HealthReport.java  --timeout 30 localhost:7094");
+        print("java HealthReport.java MyApplication");
+        print("java HealthReport.java com.example.MyApplication");
+        print("java HealthReport.java example.module/com.example.MyApplication");
+        print("java HealthReport.java application.jar");
+        print("java HealthReport.java /programs/application.jar");
+        print("java HealthReport.java 4711");
+        print("java HealthReport.java /repository/");
+        print("java HealthReport.java /repository/2021_03_30_09_48_31_60185");
+        print("java HealthReport.java example.com:7091");
+        print("java HealthReport.java 127.0.0.1:7092");
+        print("java HealthReport.java [0:0:0:0:0:0:0:1]:7093");
+        print("java HealthReport.java recording.jfr");
+        print("java HealthReport.java /directory/perf.jfr");
+        print("java HealthReport.java --replay-speed 10 recording.jfr");
+        print("java HealthReport.java self");
         print("");
         List<AttachableProcess> aps = listProcesses();
         if (!aps.isEmpty()) {
@@ -466,31 +466,31 @@ public final class HealthReport {
 
     // # # # INSTANTIATE EVENT STREAM# # #
 
-    private static EventStream createStream(String target) throws Exception {
-        if (target.equals("self")) {
+    private static EventStream createStream(String source) throws Exception {
+        if (source.equals("self")) {
             return new RecordingStream();
         }
-        Path p = makePath(target);
-        if (p != null) {
-            return createFromPath(p);
+        Path path = makePath(source);
+        if (path != null) {
+            return createFromPath(path);
         }
-        JMXServiceURL url = makeJMXServiceURL(target);
+        JMXServiceURL url = makeJMXServiceURL(source);
         if (url != null) {
             return createRemoteStream(url);
         }
-        Path repository = findRepository(target);
+        Path repository = findRepository(source);
         if (repository != null) {
             return EventStream.openRepository(repository);
         }
-        throw new Exception("Could not open : " + target);
+        throw new Exception("Could not open : " + source);
     }
 
     private static boolean isFile = false;
-    private static EventStream createFromPath(Path p) throws IOException {
-        if (Files.isDirectory(p)) {
+    private static EventStream createFromPath(Path path) throws IOException {
+        if (Files.isDirectory(path)) {
             // With JDK 17 it is not necessary to locate subdirectory
             SortedMap<Instant, Path> sorted = new TreeMap<>();
-            Files.list(p).forEach(sub -> {
+            Files.list(path).forEach(sub -> {
                 try {
                     if (Files.isDirectory(sub)) {
                         FileTime ft = Files.getLastModifiedTime(sub);
@@ -501,14 +501,14 @@ public final class HealthReport {
                 }
             });
             if (sorted.isEmpty()) {
-                return EventStream.openRepository(p);
+                return EventStream.openRepository(path);
             } else {
                 Instant latest = sorted.lastKey();
                 Path dir = sorted.get(latest);
                 return EventStream.openRepository(dir);
             }
         } else {
-            EventStream f = EventStream.openFile(p);
+            EventStream f = EventStream.openFile(path);
             isFile = true;
             return f;
         }
@@ -522,9 +522,9 @@ public final class HealthReport {
         return new RemoteRecordingStream(c.getMBeanServerConnection());
     }
 
-    private static JMXServiceURL makeJMXServiceURL(String target) {
+    private static JMXServiceURL makeJMXServiceURL(String source) {
         try {
-            String[] s = target.split(":");
+            String[] s = source.split(":");
             if (s.length == 2) {
                 String host = s[0];
                 String port = s[1];
@@ -535,9 +535,9 @@ public final class HealthReport {
         return null;
     }
 
-    private static Path makePath(String target) {
+    private static Path makePath(String source) {
         try {
-            Path p = Paths.get(target);
+            Path p = Paths.get(source);
             if (Files.exists(p)) {
                 return p;
             }
@@ -553,9 +553,9 @@ public final class HealthReport {
         }
     }
 
-    private static Path findRepository(String target) {
+    private static Path findRepository(String source) {
         for (AttachableProcess p : listProcesses()) {
-            if (target.equals(p.desc().id()) || target.equals(p.desc().displayName())) {
+            if (source.equals(p.desc().id()) || source.equals(p.desc().displayName())) {
                 return Path.of(p.path());
             }
         }
@@ -573,6 +573,7 @@ public final class HealthReport {
                     jvm.detach();
                     list.add(new AttachableProcess(vm, path));
                 } catch (Exception e) {
+                    debug(e.getMessage());
                 }
             }
         } catch (Exception e) {
@@ -846,8 +847,8 @@ public final class HealthReport {
             return "N/A";
         }
         long bytes = value.longValue();
-        if (bytes >= 1024 * 1024l) {
-            return bytes / (1024 * 1024L) + " MB";
+        if (bytes >= 1024 * 1024) {
+            return bytes / (1024 * 1024) + " MB";
         }
         if (bytes >= 1024) {
             return bytes / 1024 + " kB";
