@@ -6,15 +6,15 @@
 
 Options can be passed to Health Report, both as a Java agent and a single-file program. The Java agent uses ',' and '=' as delimiters instead of whitespace characters, for example:
 
-     $ java -javaagent:health-report.jar=--scroll,--debug,--timeout=20 com.example.MyApp
+     $ java -javaagent:health-report.jar=--scroll,--debug,--timeout=20 com.example.MyApplication
 
 #### --scroll
 
-Health Report uses ANSI characters to reposition the cursor after each update. To scroll the output instead, specify --scroll.
+Health Report uses ANSI characters to reposition the cursor after each update. To instead scroll the output, specify --scroll.
 
 Example:
 
-    $ java --scroll HealthReport.java MyApp
+    $ java --scroll HealthReport.java MyApplication
 
 On Windows, scrolling is the default behavior.
 
@@ -24,11 +24,11 @@ If the source becomes unresponsive, for example, if the process has crashed or t
 
 Example: 
 
-    $ java --timeout 5 HealthReport.java MyApp
+    $ java --timeout 5 HealthReport.java MyApplication
 
 #### --replay-speed <integer>
 
-The --replay-option can only be used when the source is a recording file. The option determines how fast events are replayed. A speed of 1 will, replays the events in the same pace as they were recorded. A speed of 10, replays them ten times as fast.
+The --replay-option can only be used when the source is a recording file. The option determines how fast events are replayed. A speed of 1 replays the events in the same pace as they were recorded. A speed of 10 replays them ten times as fast.
 
 Example:
 
@@ -42,21 +42,21 @@ If Health Report is not able stream events, --debug can be specified to troubles
 
 Example:
 
-    $ java --debug HealthReport.java com.example.MyApp
+    $ java --debug HealthReport.java com.example.MyApplication
 
 ## \<source> 
 
-The source is where Health Report stream events from. It can be a Java process, a directory, a network address or a recording file. 
+The source is where Health Report stream events from. It can be a Java process, a directory, a network address, or a recording file. 
 
 #### Java process
 
 Flight Recorder must be started before data can be streamed from a Java process, for example:
 
-    $ java -XX:StartFlightRecording com.example.MyApp
+    $ java -XX:StartFlightRecording com.example.MyApplication
 
-The source will match textually from the end of the Java process name, typically the class name with the main method. If the process isn't running with Flight Recorder, it can be started using the jcmd tool located in JAVA_HOME: 
+The source will match textually from the end of the Java process name, which is typically the class name with the main method. If the process isn't running with Flight Recorder, it can be started using the jcmd tool located in JAVA_HOME: 
 
-    $ jcmd com.example.MyApp JFR.start 
+    $ jcmd com.example.MyApplication JFR.start 
 
 If there are multiple processes with the same name, the PID can be used:
 
@@ -67,8 +67,8 @@ A list of Java processes and their PIDs are shown if Health Report is started wi
 
 Examples:
 
-    $java HealthReport.java com.example.MyApp
-    $java HealthReport.java MyApp
+    $java HealthReport.java com.example.MyApplication
+    $java HealthReport.java MyApplication
     $java HealthReport.java 4711
     $java HealthReport.java my.jar
 
@@ -92,7 +92,7 @@ Health Report can stream events over JMX, but it requires that the management ag
     $ java -Dcom.sun.management.jmxremote.port=7091 
            -Dcom.sun.management.jmxremote.authenticate=false
            -Dcom.sun.management.jmxremote.ssl=false
-           com.example.MyApp
+           com.example.MyApplication
 
 The management agent can also be started using jcmd:
 
@@ -106,7 +106,8 @@ Examples:
 
     $ java HealthReport.java example.com:7091
     $ java HealthReport.java 127.0.0.1:7091
-    $ java HealthReport.java [0:0:0:0:0:0:0:1]:7093
+    $ java HealthReport.java [0:0:0:0:0:0:0:1]:7091
+    $ java HealthReport.java service:jmx:rmi:///jndi/rmi://com.example:7091/jmxrmi
 
 Additional information on how to setup the management agent can be found [here](https://docs.oracle.com/en/java/javase/16/management/monitoring-and-management-using-jmx-technology.html). Health Report doesn't support ssl and authentication, so it can't be used in environments where security is a concern. 
 
@@ -114,11 +115,11 @@ Additional information on how to setup the management agent can be found [here](
 
 Health Report can stream event from a recording file. A recording file can be created by specifying -XX:StartFlightRecording at startup, for example:
 
-    $ java -XX:StartFlightRecording:filename=recording.jfr,duration=60s com.example.MyApp 
+    $ java -XX:StartFlightRecording:filename=recording.jfr,duration=60s com.example.MyApplication
 
 A recording file can also be created using jcmd:
 
-    $ jcmd com.example.MyApp JFR.start filename=/directory/perf.jfr duration=60s
+    $ jcmd com.example.MyApplication JFR.start filename=/directory/perf.jfr duration=60s
 
 Examples:
 

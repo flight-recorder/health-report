@@ -2,7 +2,7 @@
 
 Health Report is a Java program that demonstrates the JFR Event Streaming API.
 
-It's both a Java agent and a .java file that can be launched as a single-file program. The agent runs alongside with an ordinary Java application and prints data produced by JFR to standard out. 
+It's both a Java agent and a Java file that can be launched as a single-file program. The agent runs alongside with an ordinary Java application and prints data produced by JFR to standard out. 
 
 Health report requires JDK 16, or later, and only works with OpenJDK/Oracle JDK.
 
@@ -52,7 +52,7 @@ To run Health Report as a single-file program:
   
     $ java HealthReport.java <source>
 
-The source is where events are streamed from. It can be a Java process, a repository directory, a network address, a recording file, or itself.
+The source is where events are streamed from. It can be a Java process, a repository directory, a network address, a JMX service URL, a recording file, or itself.
  
     $ java HealthReport.java MyApplication
     $ java HealthReport.java --debug MyApplication
@@ -68,16 +68,17 @@ The source is where events are streamed from. It can be a Java process, a reposi
     $ java HealthReport.java example.com:7091
     $ java HealthReport.java 127.0.0.1:7092
     $ java HealthReport.java [0:0:0:0:0:0:0:1]:7093
+    $ java HealthReport.java service:jmx:rmi:///jndi/rmi://com.example:7091/jmxrmi
     $ java HealthReport.java recording.jfr
     $ java HealthReport.java /directory/perf.jfr
     $ java HealthReport.java --replay-speed 10 recording.jfr
     $ java HealthReport.java self
 
-If the source is a network address running a JMX management agent, Health Report starts a recording on the host. Otherwise, it must be started manually, for example using -XX:StartFlightRecording.
+If the source is a network address of a JMX management agent, Health Report starts a recording on the host. Otherwise, the recording must be started manually, for example using -XX:StartFlightRecording.
 
 If a stream can't be created, for example, if the source process hasn't started yet, Health Report will retry until the source becomes available. This is convenient when the program being monitored is frequently started and stopped. 
 
-For more detailed information see [usage](https://github.com/flight-recorder/health-report/blob/master/Usage.md).
+For more detailed information, see [usage](https://github.com/flight-recorder/health-report/blob/master/Usage.md).
 
 # Known issues
 

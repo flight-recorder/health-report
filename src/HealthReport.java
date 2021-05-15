@@ -22,26 +22,24 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-import java.io.Closeable;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,6 +48,9 @@ import java.util.Queue;
 import java.util.SortedMap;
 import java.util.StringJoiner;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
@@ -90,173 +91,142 @@ public final class HealthReport {
     | $EXECUTION_TOP_FRAME                                              $EX_PE   |
     ==============================================================================
     """;
-    public final static Field FLUSH_TIME = new Field();
+    Field FLUSH_TIME = new Field();
 
-    public final static Field GC_NAME = new Field();
-    public final static Field OC_COUNT = new Field(Option.COUNT);
-    public final static Field OC_AVG = new Field(Option.AVERAGE, Option.DURATION);
-    public final static Field OC_MAX = new Field(Option.MAX, Option.DURATION);
-    public final static Field YC_COUNT = new Field(Option.COUNT);
-    public final static Field YC_AVG = new Field(Option.AVERAGE, Option.DURATION);
-    public final static Field YC_MAX = new Field(Option.MAX, Option.DURATION);
+    Field GC_NAME = new Field();
+    Field OC_COUNT = new Field(Option.COUNT);
+    Field OC_AVG = new Field(Option.AVERAGE, Option.DURATION);
+    Field OC_MAX = new Field(Option.MAX, Option.DURATION);
+    Field YC_COUNT = new Field(Option.COUNT);
+    Field YC_AVG = new Field(Option.AVERAGE, Option.DURATION);
+    Field YC_MAX = new Field(Option.MAX, Option.DURATION);
 
-    public final static Field PHYSIC_MEM = new Field(Option.BYTES);
-    public final static Field INIT_HEAP = new Field(Option.BYTES);
-    public final static Field USED_HEAP = new Field(Option.BYTES);
-    public final static Field COM_HEAP = new Field(Option.BYTES);
-    public final static Field MACH_CPU = new Field(Option.PERCENTAGE);
-    public final static Field USR_CPU = new Field(Option.PERCENTAGE);
-    public final static Field SYS_CPU = new Field(Option.PERCENTAGE);
+    Field PHYSIC_MEM = new Field(Option.BYTES);
+    Field INIT_HEAP = new Field(Option.BYTES);
+    Field USED_HEAP = new Field(Option.BYTES);
+    Field COM_HEAP = new Field(Option.BYTES);
+    Field MACH_CPU = new Field(Option.PERCENTAGE);
+    Field USR_CPU = new Field(Option.PERCENTAGE);
+    Field SYS_CPU = new Field(Option.PERCENTAGE);
 
-    public final static Field ALLOC_RATE = new Field(Option.BYTES_PER_SECOND);
-    public final static Field TOT_ALLOC = new Field(Option.TOTAL, Option.BYTES);
-    public final static Field THREADS = new Field(Option.INTEGER);
-    public final static Field CLASSES = new Field(Option.INTEGER);
-    public final static Field SAFEPOINTS = new Field(Option.COUNT);
-    public final static Field MAX_SAFE = new Field(Option.MAX, Option.DURATION);
-    public final static Field MAX_COM = new Field(Option.MAX, Option.DURATION);
+    Field ALLOC_RATE = new Field(Option.BYTES_PER_SECOND);
+    Field TOT_ALLOC = new Field(Option.TOTAL, Option.BYTES);
+    Field THREADS = new Field(Option.INTEGER);
+    Field CLASSES = new Field(Option.INTEGER);
+    Field SAFEPOINTS = new Field(Option.COUNT);
+    Field MAX_SAFE = new Field(Option.MAX, Option.DURATION);
+    Field MAX_COM = new Field(Option.MAX, Option.DURATION);
 
-    public final static Field ALLOCACTION_TOP_FRAME = new Field();
-    public final static Field AL_PE = new Field(Option.NORMALIZED, Option.TOTAL);
+    Field ALLOCACTION_TOP_FRAME = new Field();
+    Field AL_PE = new Field(Option.NORMALIZED, Option.TOTAL);
 
-    public final static Field EXECUTION_TOP_FRAME = new Field();
-    public final static Field EX_PE = new Field(Option.NORMALIZED, Option.COUNT);
+    Field EXECUTION_TOP_FRAME = new Field();
+    Field EX_PE = new Field(Option.NORMALIZED, Option.COUNT);
 
-    private final static void startStream(String source) throws Exception {
-        EventStream es = createStream(source);
-        print("");
-        Duration duration = Duration.ofSeconds(1);
-        if (es.getClass().getName().endsWith("RecordingStream")) {
-            // Event configuration
-            enable(es, "jdk.CPULoad").withPeriod(duration);
-            enable(es, "jdk.YoungGarbageCollection").withoutThreshold();
-            enable(es, "jdk.OldGarbageCollection").withoutThreshold();
-            enable(es, "jdk.GCHeapSummary").withPeriod(duration);
-            enable(es, "jdk.PhysicalMemory").withPeriod(duration);
-            enable(es, "jdk.GCConfiguration").withPeriod(duration);
-            enable(es, "jdk.SafepointBegin");
-            enable(es, "jdk.SafepointEnd");
-            enable(es, "jdk.ObjectAllocationSample").with("throttle", "150/s");
-            enable(es, "jdk.ExecutionSample").withPeriod(Duration.ofMillis(10)).withStackTrace();
-            enable(es, "jdk.JavaThreadStatistics").withPeriod(duration);
-            enable(es, "jdk.ClassLoadingStatistics").withPeriod(duration);
-            enable(es, "jdk.Compilation").withoutThreshold();
-            enable(es, "jdk.GCHeapConfiguration").withPeriod(duration);
-            enable(es, "jdk.Flush").withoutThreshold();
+    // Only recording streams can enable settings.
+    private static EventSettings enable(EventStream es, String eventName) {
+        if (es instanceof RemoteRecordingStream) {
+            return ((RemoteRecordingStream)es).enable(eventName);
+        } else {
+            return ((RecordingStream)es).enable(eventName);
         }
+    }
 
-        // Dispatch handlers
-        es.onEvent("jdk.CPULoad", HealthReport::onCPULoad);
-        es.onEvent("jdk.YoungGarbageCollection", HealthReport::onYoungColletion);
-        es.onEvent("jdk.OldGarbageCollection", HealthReport::onOldCollection);
-        es.onEvent("jdk.GCHeapSummary", HealthReport::onGCHeapSummary);
-        es.onEvent("jdk.PhysicalMemory", HealthReport::onPhysicalMemory);
-        es.onEvent("jdk.GCConfiguration", HealthReport::onGCConfiguration);
-        es.onEvent("jdk.SafepointBegin", HealthReport::onSafepointBegin);
-        es.onEvent("jdk.SafepointEnd", HealthReport::onSafepointEnd);
-        es.onEvent("jdk.ObjectAllocationSample", HealthReport::onAllocationSample);
-        es.onEvent("jdk.ExecutionSample", HealthReport::onExecutionSample);
-        es.onEvent("jdk.JavaThreadStatistics", HealthReport::onJavaThreadStatistics);
-        es.onEvent("jdk.ClassLoadingStatistics", HealthReport::onClassLoadingStatistics);
-        es.onEvent("jdk.Compilation", HealthReport::onCompilation);
-        es.onEvent("jdk.GCHeapConfiguration", HealthReport::onGCHeapConfiguration);
-        es.onEvent("jdk.Flush", HealthReport::onFlushpoint);
-        Runnable printReport = HealthReport::printReport;
-        es.onFlush(printReport);
-        if (isFile) {
-            if (replaySpeed != 0) {
-                es.onFlush(() -> takeNap(1000 / replaySpeed));
+    // Starts a stream depending on source
+    //
+    // Source               EventStream
+    // --------------------------------------------------
+    // Main class        -> EventStream.openDirectory(AttachableProcess.getPath());
+    // Directory         -> EventStream.openDirectory(Path);
+    // File              -> EventStream.openFile(Path);
+    // Network address   -> new RemoteRecordingStream(MBeanServerConnection);
+    // "Self"            -> new RecordingStream();
+    private void startStream(String source) throws Exception {
+        try (EventStream es = createStream(source)) {
+            if (es instanceof RemoteRecordingStream || es instanceof RecordingStream) {
+                // Event configuration
+                Duration duration = Duration.ofSeconds(1);
+                enable(es, "jdk.CPULoad").withPeriod(duration);
+                enable(es, "jdk.YoungGarbageCollection").withoutThreshold();
+                enable(es, "jdk.OldGarbageCollection").withoutThreshold();
+                enable(es, "jdk.GCHeapSummary").withPeriod(duration);
+                enable(es, "jdk.PhysicalMemory").withPeriod(duration);
+                enable(es, "jdk.GCConfiguration").withPeriod(duration);
+                enable(es, "jdk.SafepointBegin");
+                enable(es, "jdk.SafepointEnd");
+                enable(es, "jdk.ObjectAllocationSample").with("throttle", "150/s");
+                enable(es, "jdk.ExecutionSample").withPeriod(Duration.ofMillis(10)).withStackTrace();
+                enable(es, "jdk.JavaThreadStatistics").withPeriod(duration);
+                enable(es, "jdk.ClassLoadingStatistics").withPeriod(duration);
+                enable(es, "jdk.Compilation").withoutThreshold();
+                enable(es, "jdk.GCHeapConfiguration").withPeriod(duration);
+                enable(es, "jdk.Flush").withoutThreshold();
             }
-            es.start();
-            return;
-        }
-        CleanupThread cleanup = new CleanupThread(es, connector);
-        Runtime.getRuntime().addShutdownHook(cleanup);
-        es.startAsync();
-        printed = false; // don't reposition the cursor the first time
-        heartBeat = Instant.now();
-        while (Duration.between(heartBeat, Instant.now()).toSeconds() < timeout) {
-            Thread.sleep(1000);
-        }
-        es.remove(printReport);
-        if (Runtime.getRuntime().removeShutdownHook(cleanup)) {
-            cleanup.start();
-        }
-    }
 
-    private static void takeNap(int millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException ignore) {
-        }
-    }
+            // Dispatch handlers
+            es.onEvent("jdk.CPULoad", this::onCPULoad);
+            es.onEvent("jdk.YoungGarbageCollection", this::onYoungColletion);
+            es.onEvent("jdk.OldGarbageCollection", this::onOldCollection);
+            es.onEvent("jdk.GCHeapSummary", this::onGCHeapSummary);
+            es.onEvent("jdk.PhysicalMemory", this::onPhysicalMemory);
+            es.onEvent("jdk.GCConfiguration", this::onGCConfiguration);
+            es.onEvent("jdk.SafepointBegin", this::onSafepointBegin);
+            es.onEvent("jdk.SafepointEnd", this::onSafepointEnd);
+            es.onEvent("jdk.ObjectAllocationSample", this::onAllocationSample);
+            es.onEvent("jdk.ExecutionSample", this::onExecutionSample);
+            es.onEvent("jdk.JavaThreadStatistics", this::onJavaThreadStatistics);
+            es.onEvent("jdk.ClassLoadingStatistics", this::onClassLoadingStatistics);
+            es.onEvent("jdk.Compilation", this::onCompilation);
+            es.onEvent("jdk.GCHeapConfiguration", this::onGCHeapConfiguration);
+            es.onEvent("jdk.Flush", this::onFlushpoint);
 
-    // Primarily for closing a lost network connection without delay
-    private static class CleanupThread extends Thread {
-        private final EventStream stream;
-        private final Closeable closeable;
-
-        CleanupThread(EventStream stream, Closeable closeable) {
-            this.stream = stream;
-            this.closeable = closeable;
-        }
-
-        @Override
-        public void run() {
-            try {
-                if (closeable != null) {
-                    closeable.close();
-                }
-            } catch (IOException e) {
+            var heartBeat = new AtomicReference<>(Instant.now());
+            es.onFlush(() -> {
+                heartBeat.set(Instant.now());
+                printReport();
+            });
+            es.startAsync();
+            while (Duration.between(heartBeat.get(), Instant.now()).toSeconds() < timeout) {
+                Thread.sleep(100);
             }
-            stream.close();
+            timedOut = true;
         }
     }
 
-    private static EventSettings enable(EventStream stream, String eventName) {
-        if (stream instanceof RemoteRecordingStream rrs) {
-            return rrs.enable(eventName);
-        }
-        if (stream instanceof RecordingStream rs) {
-            return rs.enable(eventName);
-        }
-        throw new InternalError("Unknown class: " + stream.getClass());
-    }
-
-    private static void onCPULoad(RecordedEvent event) {
+    private void onCPULoad(RecordedEvent event) {
         MACH_CPU.addSample(event.getDouble("machineTotal"));
         SYS_CPU.addSample(event.getDouble("jvmSystem"));
         USR_CPU.addSample(event.getDouble("jvmUser"));
     }
 
-    private static void onYoungColletion(RecordedEvent event) {
+    private void onYoungColletion(RecordedEvent event) {
         long nanos = event.getDuration().toNanos();
         YC_COUNT.addSample(nanos);
         YC_MAX.addSample(nanos);
         YC_AVG.addSample(nanos);
     }
 
-    private static void onOldCollection(RecordedEvent event) {
+    private void onOldCollection(RecordedEvent event) {
         long nanos = event.getDuration().toNanos();
         OC_COUNT.addSample(nanos);
         OC_MAX.addSample(nanos);
         OC_AVG.addSample(nanos);
     }
 
-    private static void onGCHeapSummary(RecordedEvent event) {
+    private void onGCHeapSummary(RecordedEvent event) {
         USED_HEAP.addSample(event.getLong("heapUsed"));
         COM_HEAP.addSample(event.getLong("heapSpace.committedSize"));
     }
 
-    private static void onPhysicalMemory(RecordedEvent event) {
+    private void onPhysicalMemory(RecordedEvent event) {
         PHYSIC_MEM.addSample(event.getLong("totalSize"));
     }
 
-    private static void onCompilation(RecordedEvent event) {
+    private void onCompilation(RecordedEvent event) {
         MAX_COM.addSample(event.getDuration().toNanos());
     }
 
-    private static void onGCConfiguration(RecordedEvent event) {
+    private void onGCConfiguration(RecordedEvent event) {
         String gc = event.getString("oldCollector");
         String yc = event.getString("youngCollector");
         if (yc != null) {
@@ -265,13 +235,12 @@ public final class HealthReport {
         GC_NAME.addSample(gc);
     }
 
-    private final static Map<Long, Instant> safepointBegin = new HashMap<>();
-
-    private static void onSafepointBegin(RecordedEvent event) {
+    private final Map<Long, Instant> safepointBegin = new HashMap<>();
+    private void onSafepointBegin(RecordedEvent event) {
         safepointBegin.put(event.getValue("safepointId"), event.getEndTime());
     }
 
-    private static void onSafepointEnd(RecordedEvent event) {
+    private void onSafepointEnd(RecordedEvent event) {
         long id = event.getValue("safepointId");
         Instant begin = safepointBegin.get(id);
         if (begin != null) {
@@ -282,10 +251,9 @@ public final class HealthReport {
         }
     }
 
-    private static double totalAllocated;
-    private static long firstAllocationTime = -1;
-
-    private static void onAllocationSample(RecordedEvent event) {
+    private double totalAllocated;
+    private long firstAllocationTime = -1;
+    private void onAllocationSample(RecordedEvent event) {
         long size = event.getLong("weight");
         String topFrame = topFrame(event.getStackTrace());
         if (topFrame != null) {
@@ -306,48 +274,46 @@ public final class HealthReport {
         }
     }
 
-    private static void onExecutionSample(RecordedEvent event) {
+    private void onExecutionSample(RecordedEvent event) {
         String topFrame = topFrame(event.getStackTrace());
         EXECUTION_TOP_FRAME.addSample(topFrame, 1);
         EX_PE.addSample(topFrame, 1);
     }
 
-    private static void onJavaThreadStatistics(RecordedEvent event) {
+    private void onJavaThreadStatistics(RecordedEvent event) {
         THREADS.addSample(event.getDouble("activeCount"));
     }
 
-    private static void onClassLoadingStatistics(RecordedEvent event) {
+    private void onClassLoadingStatistics(RecordedEvent event) {
         long diff = event.getLong("loadedClassCount") - event.getLong("unloadedClassCount");
         CLASSES.addSample(diff);
     }
 
-    private static void onGCHeapConfiguration(RecordedEvent event) {
+    private void onGCHeapConfiguration(RecordedEvent event) {
         INIT_HEAP.addSample(event.getLong("initialSize"));
     }
 
     private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-    private static void onFlushpoint(RecordedEvent event) {
-        Instant i = event.getEndTime();
-        LocalDateTime l = LocalDateTime.ofInstant(i, ZoneOffset.systemDefault());
-        FLUSH_TIME.addSample(FORMATTER.format(l));
+    private void onFlushpoint(RecordedEvent event) {
+        LocalDateTime d = LocalDateTime.ofInstant(event.getEndTime(), ZoneOffset.systemDefault());
+        FLUSH_TIME.addSample(FORMATTER.format(d));
     }
 
     // # # # AGENT # # #
 
     // Used when loading agent from command line
-    public static void premain(String agentArgs, Instrumentation inst) {
-        agentmain(agentArgs, inst);
+    public static void premain(String args, Instrumentation inst) {
+        agentmain(args, inst);
     }
 
     // Used when loading agent during runtime.
     public static void agentmain(String args, Instrumentation inst) {
-        new Thread(() -> {
-            String[] options = args == null ? new String[0] : args.split("=|,");
-            options = Arrays.copyOf(options, options.length + 1);
-            options[options.length - 1] = "self";
+        String[] splitted = args == null ? new String[0] : args.split("=|,");
+        String[] options = Arrays.copyOf(splitted, splitted.length + 1);
+        options[options.length - 1] = "self";
+        CompletableFuture.runAsync(() -> {
             main(options);
-        }).start();
+        });
     }
 
     private static int timeout = 15;
@@ -355,7 +321,7 @@ public final class HealthReport {
     private static boolean scroll = System.lineSeparator().equals("\r\n");
     private static int replaySpeed = 0;
     public static void main(String... args) {
-        Queue<String> options = new LinkedList<>(List.of(args));
+        Queue<String> options = new ArrayDeque<>(List.of(args));
         while (options.size() > 1) {
             int optionCount = options.size();
             if (acceptOption(options, "--scroll")) {
@@ -370,32 +336,34 @@ public final class HealthReport {
             if (acceptOption(options, "--timeout")) {
                 timeout = parseInteger(options);
             }
-            if (options.size() == optionCount) {
-                print("Unknown option: " + options.peek());
+            if (options.size() == optionCount) { // No progress
+                println("Unknown option: " + options.peek());
                 options.clear();
             }
         }
-        if (options.size() == 1) {
-            String source = options.peek();
-            while (true) {
-                for (int i = 0; i < 78; i++) {
-                    try {
-                        startStream(source);
-                        if (isFile) {
-                            return; // no retry with files.
-                        }
-                        print("Time out! Retrying.");
-                        break;
-                    } catch (Exception e) {
-                        debug("\n" + e.getMessage());
-                    }
-                    takeNap(1000);
-                    System.out.print(".");
-                }
-                print("");
-            }
+        if (options.size() != 1) {
+            printHelp();
+            return;
         }
-        printHelp();
+        String source = options.poll();
+        while (true) {
+            for (int i = 0; i < 78; i++) {
+                try {
+                    HealthReport h = new HealthReport();
+                    h.startStream(source);
+                    if (h.isFile) {
+                        return; // no retry with files.
+                    }
+                    println("Time out! Retrying.");
+                    break;
+                } catch (Exception e) {
+                    debug("\n" + e.getMessage());
+                }
+                takeNap(1000);
+                System.out.print(".");
+            }
+            println("");
+        }
     }
 
     private static int parseInteger(Queue<String> options) {
@@ -403,7 +371,7 @@ public final class HealthReport {
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException nfe) {
-            print("Not a valid integer value: " + value);
+            println("Not a valid integer value: " + value);
             options.clear();
         }
         return 0;
@@ -418,43 +386,44 @@ public final class HealthReport {
     }
 
     private static void printHelp() {
-        print("Usage:");
-        print("java HealthReport.java [options] <main-class|pid|host|file|directory>");
-        print("");
-        print("Options:");
-        print(" --scroll                Don't use ANSI cursor movement. True for Windows.");
-        print(" --debug                 Print debug information");
-        print(" --timeout <int>         Seconds to wait before reestablishing stream");
-        print(" --replay-speed <int>    Speedup factor. Only works with files.");
-        print("");
-        print("Examples:");
-        print("java HealthReport.java MyApplication");
-        print("java HealthReport.java com.example.MyApplication");
-        print("java HealthReport.java example.module/com.example.MyApplication");
-        print("java HealthReport.java application.jar");
-        print("java HealthReport.java /programs/application.jar");
-        print("java HealthReport.java 4711");
-        print("java HealthReport.java /repository/");
-        print("java HealthReport.java /repository/2021_03_30_09_48_31_60185");
-        print("java HealthReport.java example.com:7091");
-        print("java HealthReport.java 127.0.0.1:7092");
-        print("java HealthReport.java [0:0:0:0:0:0:0:1]:7093");
-        print("java HealthReport.java recording.jfr");
-        print("java HealthReport.java /directory/perf.jfr");
-        print("java HealthReport.java --replay-speed 10 recording.jfr");
-        print("java HealthReport.java self");
-        print("");
+        println("Usage:");
+        println("java HealthReport.java [options] <main-class|pid|host|file|directory>");
+        println("");
+        println("Options:");
+        println(" --scroll                Don't use ANSI cursor movement. True for Windows.");
+        println(" --debug                 Print debug information");
+        println(" --timeout <int>         Seconds to wait before reestablishing stream");
+        println(" --replay-speed <int>    Speedup factor. Only works with files.");
+        println("");
+        println("Examples:");
+        println("java HealthReport.java MyApplication");
+        println("java HealthReport.java com.example.MyApplication");
+        println("java HealthReport.java example.module/com.example.MyApplication");
+        println("java HealthReport.java application.jar");
+        println("java HealthReport.java /programs/application.jar");
+        println("java HealthReport.java 4711");
+        println("java HealthReport.java /repository/");
+        println("java HealthReport.java /repository/2021_03_30_09_48_31_60185");
+        println("java HealthReport.java example.com:7091");
+        println("java HealthReport.java 127.0.0.1:7092");
+        println("java HealthReport.java [0:0:0:0:0:0:0:1]:7093");
+        println("java HealthReport.java service:jmx:rmi:///jndi/rmi://com.example:7091/jmxrmi");
+        println("java HealthReport.java recording.jfr");
+        println("java HealthReport.java /directory/perf.jfr");
+        println("java HealthReport.java --replay-speed 10 recording.jfr");
+        println("java HealthReport.java self");
+        println("");
         List<AttachableProcess> aps = listProcesses();
         if (!aps.isEmpty()) {
-            print("Java Processes:");
-            aps.forEach(p -> print(p.toString()));
+            println("Java Processes:");
+            aps.forEach(p -> println(p.toString()));
         } else {
-            print("Found no running Java processes");
+            println("Found no running Java processes");
         }
-        print("");
+        println("");
     }
 
-    private static void print(String line) {
+    private static void println(String line) {
         System.out.println(line);
     }
 
@@ -466,7 +435,7 @@ public final class HealthReport {
 
     // # # # INSTANTIATE EVENT STREAM# # #
 
-    private static EventStream createStream(String source) throws Exception {
+    private EventStream createStream(String source) throws Exception {
         if (source.equals("self")) {
             return new RecordingStream();
         }
@@ -485,8 +454,8 @@ public final class HealthReport {
         throw new Exception("Could not open : " + source);
     }
 
-    private static boolean isFile = false;
-    private static EventStream createFromPath(Path path) throws IOException {
+    private boolean isFile;
+    private EventStream createFromPath(Path path) throws IOException {
         if (Files.isDirectory(path)) {
             // With JDK 17 it is not necessary to locate subdirectory
             SortedMap<Instant, Path> sorted = new TreeMap<>();
@@ -508,21 +477,38 @@ public final class HealthReport {
                 return EventStream.openRepository(dir);
             }
         } else {
-            EventStream f = EventStream.openFile(path);
+            EventStream es = EventStream.openFile(path);
             isFile = true;
-            return f;
+            es.onClose( () -> {
+                timeout = 0; // aborts stream
+            });
+            if (replaySpeed != 0) {
+                es.onFlush(() -> takeNap(1000 / replaySpeed));
+            }
+            return es;
         }
     }
 
-    private static Closeable connector = () -> { };
-    private static EventStream createRemoteStream(JMXServiceURL url) throws IOException {
+    private EventStream createRemoteStream(JMXServiceURL url) throws IOException {
         JMXConnector c = JMXConnectorFactory.newJMXConnector(url, null);
         c.connect();
-        connector = c;
-        return new RemoteRecordingStream(c.getMBeanServerConnection());
+        EventStream es = new RemoteRecordingStream(c.getMBeanServerConnection());
+        es.onClose(() -> {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    c.close();
+                } catch (IOException e) {
+                }
+            });
+        });
+        return es;
     }
 
     private static JMXServiceURL makeJMXServiceURL(String source) {
+        try {
+            return new JMXServiceURL(source);
+        } catch (MalformedURLException e) {
+        }
         try {
             String[] s = source.split(":");
             if (s.length == 2) {
@@ -537,7 +523,7 @@ public final class HealthReport {
 
     private static Path makePath(String source) {
         try {
-            Path p = Paths.get(source);
+            Path p = Path.of(source);
             if (Files.exists(p)) {
                 return p;
             }
@@ -549,13 +535,14 @@ public final class HealthReport {
     record AttachableProcess(VirtualMachineDescriptor desc, String path) {
         @Override
         public String toString() {
-            return String.format("%-5s %s %s", desc.id(), path != null ? "[JFR]" : "     ", desc.displayName());
+            String jfr = path != null ? "[JFR]" : "     ";
+            return String.format("%-5s %s %s", desc.id(), jfr, desc.displayName());
         }
     }
 
     private static Path findRepository(String source) {
         for (AttachableProcess p : listProcesses()) {
-            if (source.equals(p.desc().id()) || source.equals(p.desc().displayName())) {
+            if (source.equals(p.desc().id()) || p.desc().displayName().endsWith(source)) {
                 return Path.of(p.path());
             }
         }
@@ -711,26 +698,31 @@ public final class HealthReport {
         }
     }
 
-    private static Instant heartBeat;
-    private static boolean printed;
-    private static void printReport() {
+    private boolean printed;
+    private volatile boolean timedOut;
+    private void printReport() {
+        if (timedOut) {
+            return;
+        }
         try {
+            if (!printed) {
+                println(""); // Start report on new line
+            }
             StringBuilder template = new StringBuilder(TEMPLATE);
-            for (java.lang.reflect.Field f : HealthReport.class.getDeclaredFields()) {
+            for (var f : HealthReport.class.getDeclaredFields()) {
                 String variable = "$" + f.getName();
                 if (f.getType() == Field.class) {
-                    writeParam(template, variable, (Field) f.get(null));
+                    writeParam(template, variable, (Field) f.get(this));
                 }
             }
             if (!scroll && printed) {
                 long lines = TEMPLATE.lines().count() + 2;
-                print("\u001b[" + lines + "A");
+                println("\u001b[" + lines + "A");
             }
-            print(template.toString());
+            println(template.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
-        heartBeat = Instant.now();
         printed = true;
     }
 
@@ -804,6 +796,13 @@ public final class HealthReport {
         }
     }
 
+    private static void takeNap(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ignore) {
+        }
+    }
+
     // # # # FORMATTING # # #
 
     enum TimespanUnit {
@@ -812,7 +811,6 @@ public final class HealthReport {
 
         final String text;
         final long amount;
-
         TimespanUnit(String unit, long amount) {
             this.text = unit;
             this.amount = amount;
