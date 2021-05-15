@@ -46,7 +46,7 @@ Example output:
 
 To run Health Report as a Java agent:
 
-    $ java -javaagent:health-report.jar com.example.MyApp
+    $ java -javaagent:health-report.jar com.example.MyApplication
 
 To run Health Report as a single-file program:
   
