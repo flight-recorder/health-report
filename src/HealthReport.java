@@ -457,25 +457,7 @@ public final class HealthReport {
     private boolean isFile;
     private EventStream createFromPath(Path path) throws IOException {
         if (Files.isDirectory(path)) {
-            // With JDK 17 it is not necessary to locate subdirectory
-            SortedMap<Instant, Path> sorted = new TreeMap<>();
-            Files.list(path).forEach(sub -> {
-                try {
-                    if (Files.isDirectory(sub)) {
-                        FileTime ft = Files.getLastModifiedTime(sub);
-                        Instant t = ft.toInstant();
-                        sorted.put(t, sub);
-                    }
-                } catch (IOException e) {
-                }
-            });
-            if (sorted.isEmpty()) {
-                return EventStream.openRepository(path);
-            } else {
-                Instant latest = sorted.lastKey();
-                Path dir = sorted.get(latest);
-                return EventStream.openRepository(dir);
-            }
+            return EventStream.openRepository(path);
         } else {
             EventStream es = EventStream.openFile(path);
             isFile = true;
