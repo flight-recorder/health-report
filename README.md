@@ -82,10 +82,6 @@ For more detailed information, see [usage](https://github.com/flight-recorder/he
 
 # Known issues
 
-##### The "Top Allocation Methods" table is empty
-
-In JDK 16, a new allocation event with less overhead was introduced (jdk.ObjectAllocationSample). This means the table will be empty for earlier release where the event is not available.
-
 ##### The timestamp is missing
 
 The displayed timestamp at the top of Health Report comes from jdk.Flush event which is not enabled when using -XX:StartFlightRecording. If Health Report is running as a Java agent, or it connects over JMX, it is automatically enabled. It is not possible to turn the event on when streaming from a directory or a file. 
