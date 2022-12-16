@@ -4,7 +4,7 @@ Health Report is a Java program that demonstrates the JFR Event Streaming API.
 
 It's both a Java agent and a Java file that can be launched as a single-file program. The agent runs alongside with an ordinary Java application and prints data produced by JFR to standard out. 
 
-Health report requires JDK 16, or later, and only works with OpenJDK/Oracle JDK.
+Health report requires JDK 17, or later, and only works with OpenJDK/Oracle JDK.
 
 For a demonstration see:
 
