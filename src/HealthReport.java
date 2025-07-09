@@ -497,7 +497,16 @@ public final class HealthReport {
             }
         } catch (MalformedURLException e) {
         }
-        return null;
+        try {
+            VirtualMachine vm = VirtualMachine.attach(source);
+            try {
+                return new JMXServiceURL(vm.startLocalManagementAgent());
+            } finally {
+                vm.detach();
+            }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static Path makePath(String source) {
@@ -522,7 +531,7 @@ public final class HealthReport {
     private static Path findRepository(String source) {
         for (AttachableProcess p : listProcesses()) {
             if (source.equals(p.desc().id()) || p.desc().displayName().endsWith(source)) {
-                return Path.of(p.path());
+                return p.path == null ? null : Path.of(p.path());
             }
         }
         return null;

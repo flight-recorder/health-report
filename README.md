@@ -74,7 +74,7 @@ The source is where events are streamed from. It can be a Java process, a reposi
     $ java HealthReport.java --replay-speed 10 recording.jfr
     $ java HealthReport.java self
 
-If the source is a network address of a JMX management agent, Health Report starts a recording on the host. Otherwise, the recording must be started manually, for example using -XX:StartFlightRecording.
+If the source is a network address of a JMX management agent, Health Report starts a recording on the host. If the source is a process identifier (PID), a local management agent is started, from which a recording is initiated. Otherwise, the recording must be started manually, for example using -XX:StartFlightRecording.
 
 If a stream can't be created, for example, if the source process hasn't started yet, Health Report will retry until the source becomes available. This is convenient when the program being monitored is frequently started and stopped. 
 
